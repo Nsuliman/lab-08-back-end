@@ -16,6 +16,12 @@ const server = express();
 
 server.use( cors() );
 
+// const pg = require('pg');           /// for SQL Library
+
+// const client = new pg.Client(process.env.DATABASE_URL);          // to use database you created  
+
+// client.on('error', err => console.error(err));                  // to check if there's any error
+
 /***************************************************** Functions ***************************************/
 server.get('/location', locationHandler);
 server.get('/weather', weatherHandler);
@@ -102,18 +108,18 @@ function eventHandler(request,response) {
 
 function getEvent(query) {
   const url = `http://api.eventful.com/json/events/search?app_key=${process.env.EVENTFUL_API_KEY}&location=${query.formatted_query}`;
-    console.log('url eventttttttttttttttttttttttttttttttttttttttttttt : \n\n\n\n\n\n', url );
+    // console.log('url eventttttttttttttttttttttttttttttttttttttttttttt : \n\n\n\n\n\n', url );
 
-    console.log('querrrrrrrrrrrrry : \n\n\n\n\n\n ', query );
+    // console.log('querrrrrrrrrrrrry : \n\n\n\n\n\n ', query );
     // console.log('super agent urllllllllllll' ,superagent.get(url));
 
     return superagent.get(url)
     .then( data => {   
-      console.log('data 2 : ', data );   
+      // console.log('data 2 : ', data );   
       const eventful = JSON.parse(data.text);
-      console.log('eventful ', eventful);
+      // console.log('eventful ', eventful);
       return eventful.events.event.map( (eventday) => {
-        console.log('eventday : ', eventday);
+        // console.log('eventday : ', eventday);
         return new Eventful(eventday);
       });
     });
@@ -127,5 +133,11 @@ function Eventful(eventday) {
   this.summary = eventday.description;
 
 } // End of Eventful constructor function 
+
+
+// client.connect();
+// .then( () => {
+//         server.listen(PORT, () => console.log(`App listening on ${PORT}`));        // to make the server listen after connected to database
+//     });
 
 server.listen( PORT, () => console.log('hello world, from port', PORT));
