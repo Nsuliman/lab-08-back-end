@@ -16,11 +16,11 @@ const server = express();
 
 server.use( cors() );
 
-// const pg = require('pg');           /// for SQL Library
+const pg = require('pg');           /// for SQL Library
 
-// const client = new pg.Client(process.env.DATABASE_URL);          // to use database you created  
+const client = new pg.Client(process.env.DATABASE_URL);          // to use database you created  
 
-// client.on('error', err => console.error(err));                  // to check if there's any error
+client.on('error', err => console.error(err));                  // to check if there's any error
 
 /***************************************************** Functions ***************************************/
 server.get('/location', locationHandler);
@@ -39,22 +39,67 @@ Object should look like this:
  */
 
 function locationHandler(request,response) {
-  getLocation(request.query.data)             // Get city input from user
-    .then( locationData => response.status(200).json(locationData) );            // To show up the generated data 
+  // getLocation(request.query.data)             // Get city input from user
+  //   .then( locationData => response.status(200).json(locationData) );            // To show up the generated data 
+  const city = request.query.data;
+  console.log('cityyyyyyyyyyyyyyyyyyyyyyyyyyyyy : ', city);
+  getLocation(city)
+    // .then(locationData => res.status(200).json(locationData));
+    .then(data =>  response.status(200).json(data))
+    .catch((error) => errorHandler(error, request, response));
+
 } // End of location handler function 
+
 
 function getLocation(city) {
  
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${city}&key=${process.env.GEOCODE_API_KEY}`
+  // const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${city}&key=${process.env.GEOCODE_API_KEY}`
 
-  return superagent.get(url)
-    .then( data => {
-      // console.log('\n\n\n\n\n\n\n\n data : ', data.header);
-      // console.log('data.body : ', data.body);
-      return new Location(city, data.body);
-    })
+  // return superagent.get(url)
+  //   .then( data => {
+  //     // console.log('\n\n\n\n\n\n\n\n data : ', data.header);
+  //     // console.log('data.body : ', data.body);
+  //     return new Location(city, data.body);
+  //   })
 
-} // End of get location function 
+  let SQL = 'select * FROM locations WHERE search_query = $1 ';
+  let values = [city];
+
+  console.log('  \n\n\n SQQQQQQQQQQQQQQQQQQQQQQQQQQL :', SQL);
+console.log('  \n\n\n valuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuues :  ', values);
+
+  return client.query(SQL, values)        // I stock here , didn't enter to promise 
+    .then(results => {
+      console.log(' \n\n\n resulttttttttttttttttttttttttttttttttttttts :  ', results);
+      if (results.rowCount) { return results.rows[0]; }
+      else {
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${city}&key=${process.env.GEOCODE_API_KEY}`;
+        // let SQL = 'INSERT INTO location (search_query, formatted_query, latitude, longitude) VALUES ($1, $2, $3, $4) RETURNING *';
+          console.log('  \n\n\n urlllllllllllllllllllllllllllll :  ', url);
+        return superagent.get(url)
+          .then(data => cacheLocation(city, data.body));
+      }
+      // return new Location (city , data.body)
+    });
+
+};// End of get location function 
+
+let cache = {};
+function cacheLocation(city, data) {
+  const location = new Location(data.results[0]);
+  let SQL = 'INSERT INTO location (search_query, formatted_query, latitude, longitude) VALUES ($1, $2, $3, $4) RETURNING *';
+  console.log('  \n\n\n SQQQQQQQQQQQQQQQQQQQQQQQQQQL  CacheLocation:', SQL);
+
+  let values = [city, location.formatted_query, location.latitude, location.longitude];
+  console.log('  \n\n\n valuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuues CacheLocation :  ', values);
+
+  return client.query(SQL, values)
+    .then(results => {
+      const savedLocation = results.rows[0];
+      cache[city] = savedLocation;
+      return savedLocation;
+    });
+}; // End of cache location 
 
 
 function Location(city, data) {
